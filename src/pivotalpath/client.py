@@ -570,18 +570,55 @@ class Client:
                 **filters,
             )
 
+        # Track whether api_class was explicitly given. The default
+        # (all three classes) is a loose "search anywhere" mode where a
+        # typo legitimately produces zero hits across every catalog —
+        # silent empty is the expected shape there. When the user
+        # narrows to a specific class (or list), they're being precise,
+        # so we tighten up and pre-validate filter keys.
         if api_class is None:
             classes = ['fund', 'index', 'basket']
+            explicit_class = False
         elif isinstance(api_class, str):
             classes = [api_class]
+            explicit_class = True
         else:
             classes = list(api_class)
+            explicit_class = True
 
         if not classes:
             raise PivotalPathError(
                 'InvalidParameter',
                 'returns(...) needs api_class to be non-empty when id is omitted.',
             ) from None
+
+        if explicit_class:
+            self._ensure_schema()
+            if self._schema and filters:
+                valid_cols: set = set()
+                for cls in classes:
+                    for ep in (f'{cls}_catalog', f'{cls}_return'):
+                        valid_cols |= self._schema.get(ep) or set()
+                unknown = []
+                for k in filters:
+                    if k in _RESERVED_KEYS or k in valid_cols:
+                        continue
+                    stripped = next(
+                        (k[:-len(s)] for s in ('_min', '_max', '_exclude')
+                         if k.endswith(s)),
+                        None,
+                    )
+                    if stripped is None or stripped not in valid_cols:
+                        unknown.append(k)
+                if unknown:
+                    hint = ', '.join(sorted(valid_cols))
+                    raise PivotalPathError(
+                        'InvalidParameter',
+                        f"{sorted(unknown)} not a column on any of "
+                        f"{[f'{c}_catalog' for c in classes]} or "
+                        f"{[f'{c}_return' for c in classes]}. "
+                        f"Try: {hint}",
+                    ) from None
 
         parts: list = []
         for cls in classes:
