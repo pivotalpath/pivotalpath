@@ -22,6 +22,8 @@ the package detects pandas at import time.
 """
 from __future__ import annotations
 
+import sys      as _sys
+import types    as _types
 from functools import partial
 from typing    import Any
 
@@ -102,3 +104,29 @@ __all__ = [
     'set_api_key', 'set_base_url', 'get', 'returns', 'mtd', 'info',
     'install_excepthook', 'uninstall_excepthook',
 ] + list(ENDPOINTS)
+
+
+# ----------------------------------------------------------------------
+# Public-API write protection. Catches typos like
+# ``pp.set_api_key = 'pp-...'`` (with ``=`` instead of ``(...)`` ) which
+# would otherwise silently shadow the function with a string and surface
+# later as a confusing ``TypeError: 'str' object is not callable``.
+#
+# Internal rebinds inside this package use ``globals()[name] = value`` —
+# that goes through the module's ``__dict__`` directly and bypasses
+# ``__setattr__``, so ``set_api_key`` / ``set_base_url`` keep working.
+# ----------------------------------------------------------------------
+class _ProtectedModule(_types.ModuleType):
+    def __setattr__(self, name, value):
+        protected = self.__dict__.get('_PROTECTED_NAMES')
+        if protected is not None and name in protected:
+            raise AttributeError(
+                f"cannot reassign 'pivotalpath.{name}' — it is part of "
+                f"the public API. Did you mean to call it: "
+                f"pp.{name}(...) ?"
+            )
+        super().__setattr__(name, value)
+
+
+_PROTECTED_NAMES: frozenset[str] = frozenset(__all__)
+_sys.modules[__name__].__class__ = _ProtectedModule
