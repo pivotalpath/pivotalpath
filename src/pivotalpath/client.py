@@ -235,6 +235,20 @@ class Client:
 
         col_hint = ', '.join(sorted(cols))
 
+        # Label-output keys (``pivot_columns``, ``label``, ``column_label``)
+        # name a column to use as the *output* label after pivoting. That
+        # column lives on the corresponding ``<class>_catalog`` (``name``,
+        # ``firm``, ``peergroup`` …), not on the time-series endpoint
+        # (which only has ``date``, ``id``, ``mtd``, …). Validate label
+        # keys against the union of both schemas.
+        label_cols = cols
+        if '_' in endpoint and not endpoint.endswith('_catalog'):
+            cat = endpoint.split('_', 1)[0] + '_catalog'
+            cat_cols = self._schema.get(cat)
+            if cat_cols:
+                label_cols = cols | cat_cols
+        label_hint = ', '.join(sorted(label_cols))
+
         def _check_col(value):
             if value is None:
                 return None
@@ -245,9 +259,22 @@ class Client:
                             f"Try: {col_hint}")
             return None
 
-        for key in ('select', 'fields', 'show_fields',
-                    'pivot_columns', 'label', 'column_label'):
+        def _check_label(value):
+            if value is None:
+                return None
+            for v in (value if isinstance(value, (list, tuple)) else [value]):
+                if v not in label_cols:
+                    return ('InvalidParameter',
+                            f"'{v}' is not a valid label column for "
+                            f"'{endpoint}'. Try: {label_hint}")
+            return None
+
+        for key in ('select', 'fields', 'show_fields'):
             err = _check_col(params.get(key))
+            if err:
+                return err
+        for key in ('pivot_columns', 'label', 'column_label'):
+            err = _check_label(params.get(key))
             if err:
                 return err
 
