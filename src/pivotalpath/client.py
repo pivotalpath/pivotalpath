@@ -85,7 +85,7 @@ except ImportError:
 
 DEFAULT_BASE_URL = os.environ.get(
     'PIVOTALPATH_BASE_URL',
-    'http://127.0.0.1:8050/resources/api/v2/',
+    'https://apis.pivotalpath.com/resources/api/v2/',
 )
 
 

@@ -33,9 +33,10 @@ import pivotalpath as pp
 pp.set_api_key('sk-...')
 ```
 
-The base URL defaults to the local dev server
-(`http://127.0.0.1:8050/resources/api/v2/`). Override via
-`PIVOTALPATH_BASE_URL` env var or `pp.set_base_url(...)`.
+The base URL defaults to the production API
+(`https://apis.pivotalpath.com/resources/api/v2/`). Point at a local
+dev server (or staging) via the `PIVOTALPATH_BASE_URL` env var or
+`pp.set_base_url(...)`.
 
 ## Use
 

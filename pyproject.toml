@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pivotalpath"
-version = "0.1.0"
+version = "0.1.1"
 description = "Python wrapper for the PivotalPath v2 API."
 readme = "README.md"
 requires-python = ">=3.9"
