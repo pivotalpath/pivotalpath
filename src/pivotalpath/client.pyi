@@ -38,11 +38,12 @@ class Client:
             columns: Any = ...,
             **filters: Any) -> Any: ...
 
-    def returns(self, id: Any, *,
-                start:   Any = ...,
-                end:     Any = ...,
-                pivot:   bool = ...,
-                columns: str = ...,
+    def returns(self, id: Any = ..., *,
+                api_class: Any = ...,
+                start:     Any = ...,
+                end:       Any = ...,
+                pivot:     bool = ...,
+                columns:   str = ...,
                 **filters: Any) -> Any: ...
     mtd = returns
 

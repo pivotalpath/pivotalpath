@@ -89,6 +89,39 @@ DEFAULT_BASE_URL = os.environ.get(
 )
 
 
+def _merge_returns(parts, *, pivot: bool):
+    """Combine per-class results from a multi-class ``returns(...)``
+    fan-out. Pivoted: outer-join on ``date`` so each class contributes
+    its own id columns. Non-pivoted: row-concat. Works with or without
+    pandas — falls back to a manual dict merge for the no-pandas path.
+    """
+    if HAS_PANDAS:
+        if pivot:
+            out = parts[0]
+            for p in parts[1:]:
+                out = out.merge(p, on='date', how='outer')
+            return out.sort_values('date').reset_index(drop=True)
+        return _pd.concat(parts, ignore_index=True)
+
+    if pivot:
+        by_date: dict = {}
+        for p in parts:
+            for row in p:
+                d = row.get('date')
+                if d is None:
+                    continue
+                merged = by_date.setdefault(d, {'date': d})
+                for k, v in row.items():
+                    if k != 'date':
+                        merged[k] = v
+        return sorted(by_date.values(), key=lambda r: r['date'])
+
+    out_list: list = []
+    for p in parts:
+        out_list.extend(p)
+    return out_list
+
+
 class PivotalPathError(Exception):
     """Raised when the v2 envelope reports a non-null ``error`` block,
     or when the HTTP response is not a parseable JSON envelope.
@@ -472,31 +505,84 @@ class Client:
             ) from None
         return ids, classes.pop()
 
-    def returns(self, id, *,
+    def returns(self, id: Any = None, *,
+                api_class: Any = None,
                 start: Any = None,
                 end:   Any = None,
                 pivot: bool = True,
                 columns: str = 'id',
                 **filters: Any):
-        """Monthly returns for one or more ids.
+        """Monthly returns — by id, or by catalog filters resolved
+        across one or more asset classes.
 
-        ``id`` accepts a single id or a list — all must share the same
-        asset class (``f<n>`` / ``mf<n>`` for funds, ``i<n>`` /
-        ``idx<n>`` for indexes, ``b<n>`` for baskets). Auto-routes to
-        the corresponding ``<class>_return`` endpoint.
+        Two call shapes:
+
+        1. ``returns(id=...)`` — pass an id (or list of ids) sharing a
+           single asset class (``f<n>`` / ``mf<n>`` funds, ``i<n>`` /
+           ``idx<n>`` indexes, ``b<n>`` baskets). Class is auto-detected
+           from the prefix.
+
+        2. ``returns(api_class=..., name='AQR%', ...)`` — no id; the
+           call fans out per class, each running its own catalog lookup
+           to translate the filters into ids. ``api_class`` accepts a
+           single class string or a list; defaults to all three
+           (``['fund', 'index', 'basket']``) when omitted. A class is
+           silently skipped when its catalog/endpoint can't satisfy the
+           filters (e.g. ``peergroup='CRD%'`` doesn't apply to baskets).
 
         ``columns`` controls the pivot label when ``pivot=True``:
         ``'id'`` (default) → column headers are asset ids, ``'name'``
-        → column headers are the human-readable names from the
-        catalog.
+        → human-readable names from the catalog.
         """
-        ids, api_class = self._route_by_id(id, where='returns')
-        return self.get(
-            api_class=api_class, api_feature='return',
-            id=ids, start=start, end=end,
-            pivot=pivot, columns=columns,
-            **filters,
-        )
+        if id is not None:
+            ids, cls = self._route_by_id(id, where='returns')
+            return self.get(
+                api_class=cls, api_feature='return',
+                id=ids, start=start, end=end,
+                pivot=pivot, columns=columns,
+                **filters,
+            )
+
+        if api_class is None:
+            classes = ['fund', 'index', 'basket']
+        elif isinstance(api_class, str):
+            classes = [api_class]
+        else:
+            classes = list(api_class)
+
+        if not classes:
+            raise PivotalPathError(
+                'InvalidParameter',
+                'returns(...) needs api_class to be non-empty when id is omitted.',
+            ) from None
+
+        parts: list = []
+        for cls in classes:
+            try:
+                part = self.get(
+                    api_class=cls, api_feature='return',
+                    start=start, end=end,
+                    pivot=pivot, columns=columns,
+                    **filters,
+                )
+            except PivotalPathError as e:
+                # Skip a class whose catalog/endpoint can't accept these
+                # filters (e.g. peergroup= on basket). Other errors raise.
+                if e.type == 'InvalidParameter':
+                    continue
+                raise
+            if HAS_PANDAS:
+                if part is None or len(part) == 0:
+                    continue
+            elif not part:
+                continue
+            parts.append(part)
+
+        if not parts:
+            return _pd.DataFrame() if HAS_PANDAS else []
+        if len(parts) == 1:
+            return parts[0]
+        return _merge_returns(parts, pivot=pivot)
 
     # ``mtd`` reads as the column name; some users prefer it as a
     # one-word alias of ``returns``. Same callable, different sticker.
