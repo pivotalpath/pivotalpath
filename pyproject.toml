@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pivotalpath"
+version = "0.1.0"
+description = "Python wrapper for the PivotalPath v2 API."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = ["requests>=2.28"]
+
+[project.optional-dependencies]
+pandas = ["pandas>=1.5"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+pivotalpath = ["py.typed", "*.pyi"]
