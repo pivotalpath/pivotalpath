@@ -1,0 +1,201 @@
+# pivotalpath
+
+Python wrapper around the PivotalPath v2 HTTP API. Returns
+`pandas.DataFrame` when pandas is installed, otherwise plain
+`list[dict]`. Single hard dependency: `requests`.
+
+## Install
+
+Not on PyPI yet — install directly from GitHub
+(`github.com/pivotalpath/pivotalpath`):
+
+```bash
+# Core install — pulls `requests`
+pip install git+https://github.com/pivotalpath/pivotalpath.git
+
+# With pandas extra — calls return DataFrames
+pip install "pivotalpath[pandas] @ git+https://github.com/pivotalpath/pivotalpath.git"
+```
+
+Without the `[pandas]` extra, calls return plain `list[dict]`. Once
+the package is published to PyPI, `pip install pivotalpath` /
+`pip install pivotalpath[pandas]` will be the canonical commands.
+
+## Configure
+
+Set the API key via env var or call:
+
+```python
+import os
+os.environ['PIVOTALPATH_API_KEY'] = 'pp-...'
+# OR
+import pivotalpath as pp
+pp.set_api_key('pp-...')
+```
+
+The base URL defaults to the production API
+(`https://apis.pivotalpath.com/resources/api/v2/`). Point at a local
+dev server (or staging) via the `PIVOTALPATH_BASE_URL` env var or
+`pp.set_base_url(...)`.
+
+### Without a key
+
+No key set? The two free endpoints — `index_catalog` and `index_return`
+— are served straight from the public dataset
+(`github.com/pivotalpath/publicdata`), so they work out of the box with
+no signup:
+
+```python
+import pivotalpath as pp        # no key needed
+idx = pp.index_catalog()
+ret = pp.index_return(id='iHFC', date_min='202001', pivot=True, columns='name')
+```
+
+All the usual query options (`select`, `id`, date window, filters,
+`pivot`) apply — they're evaluated locally against the dataset. The data
+is fetched once per process and cached. Any paid endpoint raises
+`PivotalPathError('ApiKeyRequired', …)` until you set a key. (Override
+the dataset location with `PIVOTALPATH_PUBLICDATA_URL` if you've forked
+it.)
+
+## Use
+
+```python
+import pivotalpath as pp
+
+# Free, no key needed (served from the public dataset):
+indices = pp.index_catalog()
+rets    = pp.index_return(date_min='202401', date_max='202412',
+                          pivot=True, columns='name')
+
+# Paid endpoints — set your key, then call any endpoint by name.
+pp.set_api_key('pp-...')
+rows = pp.get('your_endpoint', some_filter='value', select=['id', 'name'])
+rows = pp.your_endpoint(some_filter='value')   # identical, via shortcut
+```
+
+> **Endpoint discovery.** This package is intentionally *schema-agnostic* — it
+> ships no list of endpoints or columns. Which endpoints you can call (and
+> their columns) comes from your **API reference** at
+> <https://apis.pivotalpath.com> (the Reference tab), not from this package.
+> Any `pp.<name>(...)` is shorthand for `pp.get('<name>', ...)`. The two free
+> endpoints, `index_catalog` and `index_return`, are the exception: their data
+> is public.
+
+### Errors
+
+A non-null envelope `error` block raises `PivotalPathError` carrying the
+type, message, and HTTP status code. Calling a paid endpoint without a key
+raises `PivotalPathError('ApiKeyRequired', …)` with a pointer to where to
+get one.
+
+```python
+from pivotalpath import PivotalPathError
+
+try:
+    rows = pp.index_return(id='iHFC')
+except PivotalPathError as e:
+    print(e.type, e.message, e.status_code)
+```
+
+### Cleaner errors in notebooks (opt-in)
+
+By default `PivotalPathError` prints a full Python traceback like any
+other exception. In an interactive notebook you usually just want to see
+what's wrong. Opt in once:
+
+```python
+import pivotalpath as pp
+pp.install_excepthook()
+```
+
+After that, a bad column reads as a one-liner instead of a stack trace:
+
+```text
+>>> pp.index_catalog(select=['bogus'])
+Error: 'bogus' is not a column on 'index_catalog'. Try: abstract, id, name
+```
+
+The hook covers plain Python REPL, IPython, and Jupyter. Pass
+`force=True` to install in scripts where you'd rather log a one-liner
+than dump a stack. Reverse with `pp.uninstall_excepthook()`.
+
+The package does **not** auto-install on import — silently changing
+`sys.excepthook` as a side effect of `import` is considered bad form
+(it surprises collaborators, collides with other tools like
+`rich.traceback`, and hides debug info). It's an explicit one-line
+opt-in.
+
+### Multiple keys / multiple environments
+
+The module-level shortcuts share a singleton `Client`. For two keys
+in one process (or to point at a different base URL), instantiate
+clients explicitly:
+
+```python
+from pivotalpath import Client
+
+prod = Client(api_key='pp-prod...', base_url='https://apis.pivotalpath.com/resources/api/v2/')
+dev  = Client(api_key='pp-dev...',  base_url='http://127.0.0.1:8044/resources/api/v2/')
+
+a = prod.index_catalog()
+b = dev.index_catalog()
+```
+
+## Auto-routing by id prefix
+
+`pp.returns()` (alias `pp.mtd()`) and `pp.info()` detect the asset
+class from the leading character of each id and route to the matching
+`<class>_return` or `<class>_catalog` endpoint:
+
+| Prefix | Class | Examples       |
+|--------|-------|----------------|
+| `i`    | index | `iHFC`, `iQNT` |
+
+```python
+df = pp.returns(id=['iHFC', 'iQNT'], start='202401', columns='name')
+df = pp.mtd(id='iHFC')                    # alias of pp.returns
+df = pp.info(id='iHFC')                   # catalog metadata for an id
+```
+
+Only index ids (`i…`) auto-route. For any other endpoint, name it
+explicitly — `pp.returns(api_class='…', …)` or, most directly,
+`pp.get('<endpoint>', id=['my_slug'])`.
+
+## Catalog filters resolve to ids
+
+The package recognises kwargs that belong on the matching `<class>_catalog`
+table and resolves them to ids in one step — it fetches matching ids from
+the catalog, then runs your query filtered by those ids, returned to you as
+a single call:
+
+```python
+# Filter by index name, then pull the matching return series:
+df = pp.index_return(name='PivotalPath Composite%', start='202401', pivot=True)
+```
+
+Works for any non-catalog feature; pass `id=…` explicitly to bypass the
+resolver.
+
+## Endpoints
+
+This package does **not** enumerate endpoints. See the **Reference** tab at
+<https://apis.pivotalpath.com> for the endpoints and columns available to
+your subscription. Every endpoint is callable two equivalent ways:
+
+```python
+pp.get('your_endpoint', **params)   # generic
+pp.your_endpoint(**params)          # dynamic shortcut (same request)
+```
+
+`index_catalog` and `index_return` are free and work with no key (served
+from the public dataset — see [Without a key](#without-a-key)).
+
+## Common parameters
+
+Same shape as the HTTP API:
+
+- `select=['id', 'name']` — restrict columns
+- `id=['iHFC', 'iQNT']` — restrict to a list of ids
+- `date_min='202401'`, `date_max='202412'` — time-series window
+- `pivot=True`, `columns='name'` — wide-form output
