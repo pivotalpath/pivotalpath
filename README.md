@@ -6,20 +6,15 @@ Python wrapper around the PivotalPath v2 HTTP API. Returns
 
 ## Install
 
-Not on PyPI yet — install directly from GitHub
-(`github.com/pivotalpath/pivotalpath`):
-
 ```bash
-# Core install — pulls `requests`
-pip install git+https://github.com/pivotalpath/pivotalpath.git
+# Core install - pulls `requests`
+pip install pivotalpath
 
-# With pandas extra — calls return DataFrames
-pip install "pivotalpath[pandas] @ git+https://github.com/pivotalpath/pivotalpath.git"
+# With pandas extra - calls return DataFrames
+pip install "pivotalpath[pandas]"
 ```
 
-Without the `[pandas]` extra, calls return plain `list[dict]`. Once
-the package is published to PyPI, `pip install pivotalpath` /
-`pip install pivotalpath[pandas]` will be the canonical commands.
+Without the `[pandas]` extra, calls return plain `list[dict]`.
 
 ## Configure
 
@@ -214,3 +209,8 @@ Same shape as the HTTP API:
 - `id=['iHFC', 'iQNT']` — restrict to a list of ids
 - `date_min='202401'`, `date_max='202412'` — time-series window
 - `pivot=True`, `columns='name'` — wide-form output
+
+## License
+
+Proprietary. Copyright (c) 2026 PivotalPath. All rights reserved. See
+[LICENSE](LICENSE). Access to PivotalPath data is governed separately.

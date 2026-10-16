@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pivotalpath"
-version = "2.0.0"
+version = "2.0.1"
 description = "Schema-agnostic Python client for the PivotalPath v2 API."
 license = {text = "Proprietary"}
 classifiers = ["License :: Other/Proprietary License"]
@@ -12,6 +12,10 @@ authors = [{name = "PivotalPath"}]
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = ["requests>=2.28"]
+
+[project.urls]
+Homepage = "https://apis.pivotalpath.com"
+Source = "https://github.com/pivotalpath/pivotalpath"
 
 [project.optional-dependencies]
 pandas = ["pandas>=1.5"]
