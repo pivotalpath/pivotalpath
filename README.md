@@ -82,6 +82,21 @@ rows = pp.your_endpoint(some_filter='value')   # identical, via shortcut
 > endpoints, `index_catalog` and `index_return`, are the exception: their data
 > is public.
 
+### Discover endpoints from Python
+
+The reference is served live by the API, so these calls need a network
+connection and always match the current service:
+
+```python
+pp.help()         # how to get started, and where the full reference lives
+pp.reference()    # one row per endpoint you can use: name, group, tier, parameters
+pp.reference(raw=True)   # the complete OpenAPI document (dict)
+```
+
+Without an API key you see the public edition (the free endpoints). With a
+valid key (`pp.set_api_key('pp-...')`) you see the complete edition, the same
+document as the Reference tab and the PDF.
+
 ### Errors
 
 A non-null envelope `error` block raises `PivotalPathError` carrying the

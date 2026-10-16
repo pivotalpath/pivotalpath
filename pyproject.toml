@@ -4,8 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pivotalpath"
-version = "0.2.0"
-description = "Python wrapper for the PivotalPath v2 API."
+version = "2.0.0"
+description = "Schema-agnostic Python client for the PivotalPath v2 API."
+license = {text = "Proprietary"}
+classifiers = ["License :: Other/Proprietary License"]
+authors = [{name = "PivotalPath"}]
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = ["requests>=2.28"]

@@ -13,6 +13,10 @@ Quick start::
     rows = pp.get('your_endpoint', some_filter='value')   # generic call
     rows = pp.your_endpoint(some_filter='value')          # same, via shortcut
 
+    # Discover what your key can call (served live by the API):
+    pp.help()                # how to get started
+    pp.reference()           # endpoints, groups, parameters
+
     # Explicit clients for parallel keys / staging vs prod:
     prod = pp.Client(api_key="...", base_url="https://...")
 
@@ -56,6 +60,8 @@ def _rebind_shortcuts() -> None:
     g['returns'] = _default.returns
     g['mtd']     = _default.mtd
     g['info']    = _default.info
+    g['reference'] = _default.reference
+    g['help']      = _default.help
 
 
 def set_api_key(api_key: str) -> None:
@@ -96,6 +102,7 @@ __all__ = [
     '__version__',
     'Client', 'PivotalPathError', 'HAS_PANDAS', 'DEFAULT_BASE_URL',
     'set_api_key', 'set_base_url', 'get', 'returns', 'mtd', 'info',
+    'reference', 'help',
     'install_excepthook', 'uninstall_excepthook',
 ]
 

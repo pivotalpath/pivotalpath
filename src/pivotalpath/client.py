@@ -17,6 +17,7 @@ or explicit configuration::
 from __future__ import annotations
 
 import os
+import re
 from functools import partial
 from typing import Any
 
@@ -753,6 +754,91 @@ class Client:
             api_class=api_class, api_feature='catalog',
             id=ids, select=select, **filters,
         )
+
+    # ------------------------------------------------------------------
+    # Discovery - served by the API, never shipped in this package.
+    # ------------------------------------------------------------------
+    def _reference_url(self, suffix: str = '') -> str:
+        """Reference URL derived from ``base_url`` (``.../api/v2/`` ->
+        ``.../api/reference``)."""
+        root = re.sub(r'/v\d+$', '', self.base_url.rstrip('/'))
+        return f'{root}/reference{suffix}'
+
+    def reference(self, *, raw: bool = False):
+        """List the endpoints this API key can use, fetched from the live API.
+
+        Without a key you see the public edition (the free endpoints). With a
+        valid key you see the complete edition. Nothing is hardcoded in this
+        package: the names, groups and parameters come from the server.
+
+        Returns a DataFrame (pandas installed) or ``list[dict]`` with one row
+        per endpoint: ``endpoint``, ``group``, ``summary``, ``tier`` and
+        ``parameters``. Pass ``raw=True`` for the full OpenAPI document.
+        """
+        headers: dict[str, str] = {}
+        if self.api_key:
+            headers['Authorization'] = self.api_key
+        try:
+            resp = self._session.get(self._reference_url('/openapi.json'),
+                                     headers=headers, timeout=self.timeout)
+        except requests.RequestException as exc:
+            raise PivotalPathError(
+                'NetworkError',
+                f'Could not reach the API reference ({exc.__class__.__name__}). '
+                f'Open {KEY_SIGNUP_URL} in a browser instead.') from None
+        if resp.status_code == 401:
+            raise PivotalPathError(
+                'Unauthorized',
+                f'The API key was rejected. {_KEY_HELP}',
+                status_code=401)
+        try:
+            doc = resp.json()
+        except ValueError:
+            doc = None
+        if resp.status_code != 200 or not isinstance(doc, dict):
+            raise PivotalPathError(
+                'BadResponse',
+                f'Expected the API reference, got HTTP {resp.status_code}.',
+                status_code=resp.status_code)
+        if raw:
+            return doc
+
+        skip = {'select', '_limit_', 'pivot'}
+        rows: list[dict] = []
+        for path, item in (doc.get('paths') or {}).items():
+            op = (item or {}).get('get') or {}
+            name = op.get('operationId') or path.lstrip('/')
+            if name.startswith('_'):
+                continue        # metadata routes, not data endpoints
+            tags = op.get('tags') or ['']
+            rows.append({
+                'endpoint':   name,
+                'group':      tags[0],
+                'summary':    op.get('summary', ''),
+                'tier':       'paid' if op.get('security') else 'free',
+                'parameters': [p['name'] for p in op.get('parameters', [])
+                               if p.get('name') not in skip],
+            })
+        if HAS_PANDAS:
+            return _pd.DataFrame(rows)
+        return rows
+
+    def help(self) -> None:
+        """Print how to get started and where the full reference lives."""
+        edition = ('complete (API key set)' if self.api_key
+                   else 'public (no API key set)')
+        print('\n'.join([
+            'PivotalPath API',
+            '',
+            f'  Reference edition : {edition}',
+            f'  Full reference    : {self._reference_url()}',
+            f'  Get or manage key : {KEY_SIGNUP_URL}',
+            '',
+            '  Next steps:',
+            '    pp.reference()               list the endpoints you can use',
+            "    pp.get('<endpoint>', ...)    call an endpoint by name",
+            "    pp.set_api_key('pp-...')     unlock the complete reference",
+        ]))
 
     # ------------------------------------------------------------------
     # Repr — useful when poking around in a notebook.

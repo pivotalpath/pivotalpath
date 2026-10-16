@@ -51,6 +51,9 @@ class Client:
              select: Any = ...,
              **filters: Any) -> Any: ...
 
+    def reference(self, *, raw: bool = ...) -> Any: ...
+    def help(self) -> None: ...
+
     # Per-endpoint shortcuts resolve dynamically: client.<endpoint>(...) is
     # shorthand for client.get('<endpoint>', ...). Endpoint names are not
     # enumerated here — they come from your API reference.
