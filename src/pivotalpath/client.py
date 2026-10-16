@@ -91,9 +91,8 @@ DEFAULT_BASE_URL = os.environ.get(
 # Renders cleanly through install_excepthook (which shows just the message).
 KEY_SIGNUP_URL = 'https://apis.pivotalpath.com'
 _KEY_HELP = (
-    f"Get or manage a key at {KEY_SIGNUP_URL}: sign in, open the "
-    f"'Key Generator' tab, then call pp.set_api_key('pp-...') (or set the "
-    f"PIVOTALPATH_API_KEY env var)."
+    f"Get a key at {KEY_SIGNUP_URL} (Key Generator tab), then "
+    f"pp.set_api_key('pp-...') or set PIVOTALPATH_API_KEY."
 )
 
 
@@ -789,7 +788,7 @@ class Client:
         if resp.status_code == 401:
             raise PivotalPathError(
                 'Unauthorized',
-                f'The API key was rejected. {_KEY_HELP}',
+                f'API key rejected (invalid, revoked or replaced). {_KEY_HELP}',
                 status_code=401)
         try:
             doc = resp.json()

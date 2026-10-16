@@ -108,33 +108,19 @@ except PivotalPathError as e:
     print(e.type, e.message, e.status_code)
 ```
 
-### Cleaner errors in notebooks (opt-in)
+### Errors in notebooks and the REPL
 
-By default `PivotalPathError` prints a full Python traceback like any
-other exception. In an interactive notebook you usually just want to see
-what's wrong. Opt in once:
-
-```python
-import pivotalpath as pp
-pp.install_excepthook()
-```
-
-After that, a bad column reads as a one-liner instead of a stack trace:
+In an interactive session (Python REPL, IPython, Jupyter) a
+`PivotalPathError` prints as a one-line message instead of a traceback:
 
 ```text
 >>> pp.index_catalog(select=['bogus'])
 Error: 'bogus' is not a column on 'index_catalog'. Try: abstract, id, name
 ```
 
-The hook covers plain Python REPL, IPython, and Jupyter. Pass
-`force=True` to install in scripts where you'd rather log a one-liner
-than dump a stack. Reverse with `pp.uninstall_excepthook()`.
-
-The package does **not** auto-install on import — silently changing
-`sys.excepthook` as a side effect of `import` is considered bad form
-(it surprises collaborators, collides with other tools like
-`rich.traceback`, and hides debug info). It's an explicit one-line
-opt-in.
+Scripts and tests are unaffected and keep the full traceback. To get the
+traceback in a session too, call `pp.uninstall_excepthook()`; to get the
+one-liner in a script, call `pp.install_excepthook(force=True)`.
 
 ### Multiple keys / multiple environments
 

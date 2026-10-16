@@ -90,12 +90,11 @@ def set_base_url(base_url: str) -> None:
 _rebind_shortcuts()
 
 
-# Note: no auto-install of the clean-error display hook. Replacing
-# ``sys.excepthook`` as a side effect of ``import`` is considered
-# bad form (it surprises collaborators, collides with other tools,
-# and hides debugging info). Users who want the one-line ``Error:
-# <message>`` rendering can call ``pivotalpath.install_excepthook()``
-# explicitly — typically once at the top of an analysis notebook.
+# Interactive sessions (REPL, IPython, Jupyter) show PivotalPathError as a
+# one-line ``Error: <message>`` instead of a traceback. Scripts and tests are
+# untouched and keep full tracebacks. Opt out with
+# ``pivotalpath.uninstall_excepthook()``.
+install_excepthook()
 
 
 __all__ = [
