@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pivotalpath"
-version = "2.0.3"
+version = "2.0.4"
 description = "Schema-agnostic Python client for the PivotalPath v2 API."
 license = {text = "Proprietary"}
 classifiers = ["License :: Other/Proprietary License"]

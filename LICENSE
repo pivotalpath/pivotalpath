@@ -21,9 +21,9 @@ changes necessary for compatibility with your internal systems;
 (b) distribute, sublicense, sell, or lease the Software, or otherwise make
 it available to any third party; or (c) use the Software, or any modified
 version of it, to access PivotalPath's licensed services other than as
-permitted by your Agreement, including by circumventing authentication,
-or rate limits. Your own code that calls the Software
-through its documented interfaces is not a derivative work of the Software.
+permitted by your Agreement, including by circumventing authentication
+or rate limits. Your own code that calls the Software through its
+documented interfaces is not a derivative work of the Software.
 
 3. Data. This license covers the Software only. It grants no rights in
 PivotalPath data, indices, or other content. Data from licensed services is
