@@ -199,4 +199,8 @@ Same shape as the HTTP API:
 ## License
 
 Proprietary. Copyright (c) 2026 PivotalPath. All rights reserved. See
-[LICENSE](LICENSE). Access to PivotalPath data is governed separately.
+[LICENSE](LICENSE). Use is for accessing PivotalPath's APIs; the public
+endpoints work without a key. Access to the source code does not grant any
+license except as stated there. Data is governed separately, by your
+agreement with PivotalPath or, for the public dataset, by the terms
+published with it.

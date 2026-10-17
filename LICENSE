@@ -2,25 +2,50 @@ PivotalPath Client Library - Proprietary License
 
 Copyright (c) 2026 PivotalPath. All rights reserved.
 
-This software ("the Software") is the proprietary property of PivotalPath.
+"Agreement" means your written agreement with PivotalPath under which you
+receive API credentials.
 
-Permission is granted to install and use the Software, unmodified, solely to
-access the PivotalPath API and data services, subject to any agreement or
-terms of use that govern your access to those services.
+1. License. PivotalPath grants you a non-exclusive, non-transferable,
+revocable license to install and use this software (the "Software") solely
+to access PivotalPath's APIs and data services. You may use the Software
+(a) to access PivotalPath's public endpoints without credentials, in which
+case the data is licensed under the terms published with that dataset, and
+(b) to access PivotalPath's licensed services, in accordance with your
+Agreement. You may make copies reasonably necessary for that use, including
+on internal package repositories and mirrors, in container images, and in
+backups, provided this notice is retained.
 
-Without prior written permission from PivotalPath, you may not: (a) copy,
-modify, or create derivative works of the Software; (b) redistribute,
-sublicense, sell, lease, or otherwise make the Software available to third
-parties; or (c) use the Software to build a product or service that competes
-with PivotalPath.
+2. Restrictions. Without PivotalPath's prior written consent, you may not:
+(a) modify or create derivative works of the Software, except minimal
+changes necessary for compatibility with your internal systems;
+(b) distribute, sublicense, sell, or lease the Software, or otherwise make
+it available to any third party; or (c) use the Software, or any modified
+version of it, to access PivotalPath's licensed services other than as
+permitted by your Agreement, including by circumventing authentication,
+or rate limits. Your own code that calls the Software
+through its documented interfaces is not a derivative work of the Software.
 
-The Software is provided "AS IS", without warranty of any kind, express or
-implied, including but not limited to warranties of merchantability, fitness
-for a particular purpose and noninfringement. In no event shall PivotalPath be
-liable for any claim, damages or other liability arising from the use of the
-Software.
+3. Data. This license covers the Software only. It grants no rights in
+PivotalPath data, indices, or other content. Data from licensed services is
+governed by your Agreement; public data is governed by the terms published
+with it. If this license conflicts with your Agreement, the Agreement
+controls. Access to the source code does not grant any license except as
+stated here.
 
-Access to PivotalPath data is governed separately and is not licensed by this
-file.
+4. Third-party components. Open-source components used by the Software
+remain subject to their own licenses.
 
-Contact: support@pivotalpath.com
+5. Termination. This license ends automatically if you breach these terms.
+For licensed access it also ends when your Agreement ends. On termination
+you must stop using and delete all copies of the Software, except that use
+of the public endpoints is unaffected unless you breached these terms.
+
+6. Disclaimer. TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE SOFTWARE IS
+PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE,
+AND NONINFRINGEMENT. IN NO EVENT SHALL PIVOTALPATH BE LIABLE FOR ANY
+CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM THE SOFTWARE ITSELF. This
+section does not limit any commitment PivotalPath makes regarding its data
+or services under your Agreement.
+
+Questions and permissions: support@pivotalpath.com
