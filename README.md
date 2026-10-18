@@ -1,6 +1,6 @@
 # pivotalpath
 
-Python wrapper around the PivotalPath v2 HTTP API. Returns
+Python wrapper around the PivotalPath HTTP API. Returns
 `pandas.DataFrame` when pandas is installed, otherwise plain
 `list[dict]`. Single hard dependency: `requests`.
 
