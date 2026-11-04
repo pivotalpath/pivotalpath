@@ -174,6 +174,10 @@ class Client:
                  validate: bool = True):
         self.api_key  = api_key or os.environ.get('PIVOTALPATH_API_KEY')
         self.base_url = (base_url or DEFAULT_BASE_URL).rstrip('/') + '/'
+        # The key-less public dataset may only stand in for the default base
+        # URL. Any other base URL is always asked over HTTP, never answered
+        # from it.
+        self._public_ok = self.base_url == DEFAULT_BASE_URL.rstrip('/') + '/'
         self.timeout  = timeout
         self.validate = validate
         self._session = requests.Session()
@@ -217,7 +221,7 @@ class Client:
         # Key-less: there's no HTTP surface to introspect. Use the static
         # public-endpoint schema so preflight + catalog-filter resolution
         # still work (and so paid endpoints fall through to a clear error).
-        if not self.api_key:
+        if not self.api_key and self._public_ok:
             self._schema = {ep: set(cols)
                             for ep, cols in _publicdata.PUBLIC_SCHEMA.items()}
             return
@@ -412,7 +416,7 @@ class Client:
         # No key → serve the free endpoints from the public dataset instead
         # of HTTP. Routing here means get(), catalog-filter resolution, and
         # the returns()/info() helpers all flow through unchanged.
-        if not self.api_key:
+        if not self.api_key and self._public_ok:
             return self._public_get(endpoint, params)
 
         url = self.base_url + endpoint.lstrip('/')

@@ -33,6 +33,7 @@ import sys      as _sys
 import types    as _types
 from functools import partial
 from typing    import Any
+from urllib.parse import quote as _quote
 
 from ._version    import __version__
 from .client      import Client, PivotalPathError, HAS_PANDAS, DEFAULT_BASE_URL
@@ -81,6 +82,17 @@ def set_base_url(base_url: str) -> None:
     at staging). Re-creates the singleton in place."""
     global _default
     _default = Client(api_key=_default.api_key, base_url=base_url)
+    _rebind_shortcuts()
+
+
+# The version is the last segment of the base URL. It is passed through as
+# given: the server alone decides what it will serve.
+def set_version(version=None):
+    global _default
+    base = DEFAULT_BASE_URL if version is None else (
+        _default.base_url.rstrip('/').rsplit('/', 1)[0]
+        + '/' + _quote(str(version).strip().strip('/'), safe='') + '/')
+    _default = Client(api_key=_default.api_key, base_url=base)
     _rebind_shortcuts()
 
 
@@ -140,5 +152,5 @@ class _ProtectedModule(_types.ModuleType):
         super().__setattr__(name, value)
 
 
-_PROTECTED_NAMES: frozenset[str] = frozenset(__all__)
+_PROTECTED_NAMES: frozenset[str] = frozenset(__all__) | {'set_version'}
 _sys.modules[__name__].__class__ = _ProtectedModule
