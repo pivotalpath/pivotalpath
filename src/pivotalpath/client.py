@@ -97,6 +97,32 @@ _KEY_HELP = (
 )
 
 
+_DATE_FORMATS = {'yyyymm': 'yyyymm', 'yyyy-mm': 'yyyy-mm'}
+_YYYYMM = re.compile(r'(\d{4})(\d{2})')
+
+
+def _normalize_date_format(fmt) -> str:
+    key = fmt.strip().lower() if isinstance(fmt, str) else None
+    if key not in _DATE_FORMATS:
+        raise PivotalPathError(
+            'InvalidParameter',
+            f"date format must be 'yyyymm' or 'yyyy-mm', got {fmt!r}.") from None
+    return _DATE_FORMATS[key]
+
+
+def _apply_date_format(rows, fmt: str):
+    """Rewrite each row's ``date`` from ``YYYYMM`` to ``YYYY-MM`` when ``fmt``
+    asks for it. Rows whose ``date`` is not a six-digit string are left alone."""
+    if fmt != 'yyyy-mm':
+        return rows
+    for row in rows:
+        d = row.get('date') if isinstance(row, dict) else None
+        m = _YYYYMM.fullmatch(d) if isinstance(d, str) else None
+        if m:
+            row['date'] = f'{m.group(1)}-{m.group(2)}'
+    return rows
+
+
 def _merge_returns(parts, *, pivot: bool):
     """Combine per-class results from a multi-class ``returns(...)``
     fan-out. Pivoted: outer-join on ``date`` so each class contributes
@@ -172,7 +198,9 @@ class Client:
     def __init__(self, api_key: str | None = None,
                  base_url: str | None = None,
                  timeout: float = 30.0,
-                 validate: bool = True):
+                 validate: bool = True,
+                 date_format: str = 'yyyymm'):
+        self.date_format = _normalize_date_format(date_format)
         self.api_key  = api_key or os.environ.get('PIVOTALPATH_API_KEY')
         self.base_url = (base_url or DEFAULT_BASE_URL).rstrip('/') + '/'
         # The key-less public dataset may only stand in for the default base
@@ -452,7 +480,7 @@ class Client:
         for note in (body.get('meta') or {}).get('warnings') or []:
             _warnings.warn(str(note), stacklevel=3)
 
-        data = body.get('data') or []
+        data = _apply_date_format(body.get('data') or [], self.date_format)
         if HAS_PANDAS:
             return _pd.DataFrame(data)
         return data
@@ -483,7 +511,9 @@ class Client:
             catalog = self._load_public_rows('index_catalog')
             name_map = {str(r.get('id')): r.get('name') for r in catalog}
 
-        result = _publicdata.query(endpoint, rows, params, name_map=name_map)
+        result = _apply_date_format(
+            _publicdata.query(endpoint, rows, params, name_map=name_map),
+            self.date_format)
         if HAS_PANDAS:
             return _pd.DataFrame(result)
         return result
@@ -770,6 +800,12 @@ class Client:
         dropped (``.../api/<segment>/`` -> ``.../api/reference``)."""
         root = self.base_url.rstrip('/').rsplit('/', 1)[0]
         return f'{root}/reference{suffix}'
+
+    def set_date_format(self, format: str = 'yyyymm') -> None:
+        """Choose how dates appear in results: ``'yyyymm'`` (default, e.g.
+        ``202601``) or ``'yyyy-mm'`` (``2026-01``). Only the ``date`` column of
+        returned data changes; what you pass in queries is unaffected."""
+        self.date_format = _normalize_date_format(format)
 
     def reference(self, *, raw: bool = False):
         """List the endpoints this API key can use, fetched from the live API.

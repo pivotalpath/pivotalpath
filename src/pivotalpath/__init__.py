@@ -74,7 +74,8 @@ def set_api_key(api_key: str) -> None:
     new key without restarting the process.
     """
     global _default
-    _default = Client(api_key=api_key, base_url=_default.base_url)
+    _default = Client(api_key=api_key, base_url=_default.base_url,
+                      date_format=_default.date_format)
     _rebind_shortcuts()
 
 
@@ -82,8 +83,15 @@ def set_base_url(base_url: str) -> None:
     """Override the v2 base URL on the singleton client (e.g., point
     at staging). Re-creates the singleton in place."""
     global _default
-    _default = Client(api_key=_default.api_key, base_url=base_url)
+    _default = Client(api_key=_default.api_key, base_url=base_url,
+                      date_format=_default.date_format)
     _rebind_shortcuts()
+
+
+def set_date_format(format: str = 'yyyymm') -> None:
+    """Choose how dates appear in results: ``'yyyymm'`` (default, e.g.
+    ``202601``) or ``'yyyy-mm'`` (``2026-01``)."""
+    _default.set_date_format(format)
 
 
 # The version is the last segment of the base URL. It is passed through as
@@ -93,7 +101,8 @@ def set_version(version=None):
     base = DEFAULT_BASE_URL if version is None else (
         _default.base_url.rstrip('/').rsplit('/', 1)[0]
         + '/' + _quote(str(version).strip().strip('/'), safe='') + '/')
-    _default = Client(api_key=_default.api_key, base_url=base)
+    _default = Client(api_key=_default.api_key, base_url=base,
+                      date_format=_default.date_format)
     _rebind_shortcuts()
 
 
@@ -113,7 +122,7 @@ install_excepthook()
 __all__ = [
     '__version__',
     'Client', 'PivotalPathError', 'HAS_PANDAS', 'DEFAULT_BASE_URL',
-    'set_api_key', 'set_base_url', 'get', 'returns', 'mtd', 'info',
+    'set_api_key', 'set_base_url', 'set_date_format', 'get', 'returns', 'mtd', 'info',
     'reference', 'help', 'examples',
     'install_excepthook', 'uninstall_excepthook',
 ]
