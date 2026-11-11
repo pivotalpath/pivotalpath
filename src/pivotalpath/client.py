@@ -16,6 +16,7 @@ or explicit configuration::
 """
 from __future__ import annotations
 
+import builtins as _builtins
 import os
 import re
 import warnings as _warnings
@@ -121,6 +122,13 @@ def _apply_date_format(rows, fmt: str):
         if m:
             row['date'] = f'{m.group(1)}-{m.group(2)}'
     return rows
+
+
+def _as_records(result, records: bool):
+    """``list[dict]`` when ``records`` is set, otherwise untouched."""
+    if records and hasattr(result, 'to_dict'):
+        return result.to_dict('records')
+    return result
 
 
 def _merge_returns(parts, *, pivot: bool):
@@ -362,6 +370,7 @@ class Client:
             end:     Any = None,
             pivot:   Any = None,
             columns: Any = None,
+            records: bool = False,
             **filters: Any):
         """Call ``GET /<base_url>/<endpoint>?…`` and return its data.
 
@@ -386,7 +395,8 @@ class Client:
 
         Everything else in ``**filters`` is passed through as a
         column-level filter. Returns ``pandas.DataFrame`` when pandas
-        is installed, otherwise ``list[dict]``. Raises
+        is installed, otherwise ``list[dict]``; ``records=True`` always
+        returns ``list[dict]`` (JSON-serializable). Raises
         ``PivotalPathError`` on a non-null envelope error or a
         non-JSON response.
         """
@@ -423,7 +433,7 @@ class Client:
         cleaned, early_empty = self._resolve_catalog_filters(
             endpoint, cleaned)
         if early_empty:
-            return _pd.DataFrame() if HAS_PANDAS else []
+            return [] if records else (_pd.DataFrame() if HAS_PANDAS else [])
 
         # Preflight: catch obvious typos before the round-trip. Lifts
         # MySQL "Unknown column 'X'" errors into local
@@ -434,7 +444,7 @@ class Client:
         if pre_err is not None:
             raise PivotalPathError(*pre_err) from None
 
-        return self._http_get(endpoint, cleaned)
+        return _as_records(self._http_get(endpoint, cleaned), records)
 
     # ------------------------------------------------------------------
     # Raw HTTP — single round-trip, envelope unwrap, error → exception.
@@ -807,6 +817,77 @@ class Client:
         returned data changes; what you pass in queries is unaffected."""
         self.date_format = _normalize_date_format(format)
 
+    def endpoints(self):
+        """The endpoints this API key can use (same table as ``reference()``):
+        ``endpoint``, ``group``, ``summary``, ``tier``, ``parameters``."""
+        return self.reference()
+
+    def columns(self, endpoint: str):
+        """The columns of one endpoint's table, as served by the API: one row
+        per column with its name and whatever type information the server
+        provides. Nothing is hardcoded in this package."""
+        if not isinstance(endpoint, str) or not endpoint:
+            raise PivotalPathError(
+                'InvalidParameter',
+                "columns() needs an endpoint name, e.g. columns('<endpoint>').") from None
+        rows = None
+        if not self.api_key and self._public_ok:
+            cols = _publicdata.PUBLIC_SCHEMA.get(endpoint)
+            if cols is not None:
+                rows = [{'name': c} for c in cols]
+        else:
+            headers = {'Authorization': self.api_key} if self.api_key else {}
+            try:
+                resp = self._session.get(self.base_url + '_schema',
+                                         headers=headers, timeout=self.timeout)
+            except requests.RequestException as exc:
+                raise PivotalPathError(
+                    'NetworkError',
+                    f'Could not reach the API ({exc.__class__.__name__}).') from None
+            try:
+                body = resp.json()
+            except ValueError:
+                body = {}
+            if resp.status_code == 401:
+                raise PivotalPathError(
+                    'Unauthorized',
+                    f'API key rejected (invalid, revoked or replaced). {_KEY_HELP}',
+                    status_code=401) from None
+            data = body.get('data') if isinstance(body, dict) else None
+            if isinstance(data, dict) and isinstance(data.get(endpoint), list):
+                rows = [dict(c) if isinstance(c, dict) else {'name': c}
+                        for c in data[endpoint]]
+        if rows is None:
+            raise PivotalPathError(
+                'NotFound',
+                f"No table '{endpoint}' available to you. "
+                f"pp.endpoints() lists the ones you can use.") from None
+        return _pd.DataFrame(rows) if HAS_PANDAS else rows
+
+    def search(self, api_class: Any = None, *, records: bool = False,
+               **filters: Any):
+        """Search catalog rows by column filters, e.g. ``search(name='Camp%')``
+        (``%`` is a wildcard). ``api_class`` picks the catalog (default: the
+        public ``index`` catalog; a list searches several and stacks the
+        results). Filters are passed to the server as given. ``records=True``
+        returns ``list[dict]`` instead of a table."""
+        if api_class is None:
+            classes = ['index']
+        elif isinstance(api_class, str):
+            classes = [api_class]
+        else:
+            classes = list(api_class)
+        if not classes:
+            raise PivotalPathError(
+                'InvalidParameter', 'search() needs a non-empty api_class.') from None
+        rows = []
+        for cls in classes:
+            rows.extend(self.get(api_class=cls, api_feature='catalog',
+                                 records=True, **filters))
+        if records:
+            return rows
+        return _pd.DataFrame(rows) if HAS_PANDAS else rows
+
     def reference(self, *, raw: bool = False):
         """List the endpoints this API key can use, fetched from the live API.
 
@@ -866,11 +947,16 @@ class Client:
             return _pd.DataFrame(rows)
         return rows
 
-    def examples(self, n: int | None = None, *, run: bool = False):
+    def examples(self, n: int | None = None, *, run: bool | None = None,
+                 print: bool = True):
         """Print basic example commands, fetched from the API (valid key
-        required). ``examples()`` prints them all, numbered; ``examples(2)``
-        prints only the second. ``examples(2, run=True)`` also runs it and
-        returns the result (only for a single example, not the whole list)."""
+        required). ``examples()`` prints them all, numbered. ``examples(2)``
+        prints the second and runs it, showing the first rows of the result
+        (``print=True``, the default, returns nothing). ``print=False``
+        returns the full result instead; ``run=False`` only shows the command."""
+        out = _builtins.print
+        if run is None:
+            run = n is not None
         if run and n is None:
             raise PivotalPathError(
                 'BadRequest', 'run=True needs an example number, e.g. examples(2, run=True).')
@@ -906,14 +992,21 @@ class Client:
                 raise PivotalPathError(
                     'BadRequest', f'There are {len(items)} examples: use 1-{len(items)}.')
             items = [items[n - 1]]
-        print('\n\n'.join(f"{e['n']}. {e['title']}\n   {e['code']}" for e in items))
+        out('\n\n'.join(f"{e['n']}. {e['title']}\n   {e['code']}" for e in items))
+        if n is None:
+            out(f"\nRun any example to see its data: pp.examples(n), "
+                f"for example pp.examples(1) (n = 1-{len(items)}).")
         if not run:
             return None
         # Structured call data from the server: nothing is eval'd here.
         ex = items[0]
-        if ex.get('endpoint'):
-            return self.get(ex['endpoint'], **(ex.get('params') or {}))
-        return self.reference()
+        result = (self.get(ex['endpoint'], **(ex.get('params') or {}))
+                  if ex.get('endpoint') else self.endpoints())
+        if not print:
+            return result
+        out()
+        out(result.head(10) if hasattr(result, 'head') else result[:10])
+        return None
 
     def help(self) -> None:
         """Print how to get started and where the full reference lives."""

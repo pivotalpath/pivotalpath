@@ -64,6 +64,38 @@ def _rebind_shortcuts() -> None:
     g['reference'] = _default.reference
     g['help']      = _default.help
     g['examples']  = _default.examples
+    g['endpoints'] = _default.endpoints
+    g['columns']   = _default.columns
+    g['search']    = _default.search
+
+
+class _Meta:
+    """``pp.meta`` - questions about the API itself, always against the
+    current default client."""
+
+    @staticmethod
+    def endpoints():
+        """The endpoints you can use."""
+        return _default.endpoints()
+
+    @staticmethod
+    def columns(endpoint):
+        """The columns of one endpoint's table."""
+        return _default.columns(endpoint)
+
+    @staticmethod
+    def reference(*, raw=False):
+        return _default.reference(raw=raw)
+
+    @staticmethod
+    def examples(n=None, *, run=None, print=True):
+        return _default.examples(n, run=run, print=print)
+
+    def __repr__(self):
+        return '<pp.meta: endpoints(), columns(endpoint), reference(), examples()>'
+
+
+meta = _Meta()
 
 
 def set_api_key(api_key: str) -> None:
@@ -123,7 +155,7 @@ __all__ = [
     '__version__',
     'Client', 'PivotalPathError', 'HAS_PANDAS', 'DEFAULT_BASE_URL',
     'set_api_key', 'set_base_url', 'set_date_format', 'get', 'returns', 'mtd', 'info',
-    'reference', 'help', 'examples',
+    'reference', 'help', 'examples', 'meta', 'endpoints', 'columns', 'search',
     'install_excepthook', 'uninstall_excepthook',
 ]
 
