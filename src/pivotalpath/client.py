@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import os
 import re
+import warnings as _warnings
 from functools import partial
 from typing import Any
 
@@ -448,6 +449,9 @@ class Client:
             raise PivotalPathError(etype, message,
                                    status_code=resp.status_code) from None
 
+        for note in (body.get('meta') or {}).get('warnings') or []:
+            _warnings.warn(str(note), stacklevel=3)
+
         data = body.get('data') or []
         if HAS_PANDAS:
             return _pd.DataFrame(data)
@@ -762,9 +766,9 @@ class Client:
     # Discovery - served by the API, never shipped in this package.
     # ------------------------------------------------------------------
     def _reference_url(self, suffix: str = '') -> str:
-        """Reference URL derived from ``base_url`` (``.../api/v2/`` ->
-        ``.../api/reference``)."""
-        root = re.sub(r'/v\d+$', '', self.base_url.rstrip('/'))
+        """Reference URL derived from ``base_url``: the last path segment is
+        dropped (``.../api/<segment>/`` -> ``.../api/reference``)."""
+        root = self.base_url.rstrip('/').rsplit('/', 1)[0]
         return f'{root}/reference{suffix}'
 
     def reference(self, *, raw: bool = False):
@@ -806,7 +810,7 @@ class Client:
         if raw:
             return doc
 
-        skip = {'select', '_limit_', 'pivot'}
+        skip = {'select', '_limit_', 'limit', 'pivot'}
         rows: list[dict] = []
         for path, item in (doc.get('paths') or {}).items():
             op = (item or {}).get('get') or {}
@@ -825,6 +829,55 @@ class Client:
         if HAS_PANDAS:
             return _pd.DataFrame(rows)
         return rows
+
+    def examples(self, n: int | None = None, *, run: bool = False):
+        """Print basic example commands, fetched from the API (valid key
+        required). ``examples()`` prints them all, numbered; ``examples(2)``
+        prints only the second. ``examples(2, run=True)`` also runs it and
+        returns the result (only for a single example, not the whole list)."""
+        if run and n is None:
+            raise PivotalPathError(
+                'BadRequest', 'run=True needs an example number, e.g. examples(2, run=True).')
+        if not self.api_key:
+            raise PivotalPathError(
+                'Unauthorized',
+                f'The examples need a valid API key. {_KEY_HELP}',
+                status_code=401)
+        url = self.base_url.rstrip('/') + '/examples'
+        try:
+            resp = self._session.get(url, headers={'Authorization': self.api_key},
+                                     timeout=self.timeout)
+        except requests.RequestException as exc:
+            raise PivotalPathError(
+                'NetworkError',
+                f'Could not reach the API ({exc.__class__.__name__}).') from None
+        if resp.status_code == 401:
+            raise PivotalPathError(
+                'Unauthorized',
+                f'API key rejected (invalid, revoked or replaced). {_KEY_HELP}',
+                status_code=401)
+        try:
+            items = resp.json()['data']
+        except (ValueError, KeyError, TypeError):
+            items = None
+        if resp.status_code != 200 or not isinstance(items, list):
+            raise PivotalPathError(
+                'BadResponse',
+                f'Expected the examples, got HTTP {resp.status_code}.',
+                status_code=resp.status_code)
+        if n is not None:
+            if not isinstance(n, int) or not 1 <= n <= len(items):
+                raise PivotalPathError(
+                    'BadRequest', f'There are {len(items)} examples: use 1-{len(items)}.')
+            items = [items[n - 1]]
+        print('\n\n'.join(f"{e['n']}. {e['title']}\n   {e['code']}" for e in items))
+        if not run:
+            return None
+        # Structured call data from the server: nothing is eval'd here.
+        ex = items[0]
+        if ex.get('endpoint'):
+            return self.get(ex['endpoint'], **(ex.get('params') or {}))
+        return self.reference()
 
     def help(self) -> None:
         """Print how to get started and where the full reference lives."""

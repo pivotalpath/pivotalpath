@@ -63,6 +63,7 @@ def _rebind_shortcuts() -> None:
     g['info']    = _default.info
     g['reference'] = _default.reference
     g['help']      = _default.help
+    g['examples']  = _default.examples
 
 
 def set_api_key(api_key: str) -> None:
@@ -113,7 +114,7 @@ __all__ = [
     '__version__',
     'Client', 'PivotalPathError', 'HAS_PANDAS', 'DEFAULT_BASE_URL',
     'set_api_key', 'set_base_url', 'get', 'returns', 'mtd', 'info',
-    'reference', 'help',
+    'reference', 'help', 'examples',
     'install_excepthook', 'uninstall_excepthook',
 ]
 
